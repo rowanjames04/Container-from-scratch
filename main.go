@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strconv"
 	"syscall"
 )
 
@@ -35,27 +36,29 @@ func run() {
 		Unshareflags: syscall.CLONE_NEWNS,
 	}
 	
-	cmd.Run()
+	must(cmd.Run())
 }
 
 func child() {
-	fmt.Printf("Running %v as %d\n", os.Args[2:], os.Getpid())
-
-	cg()
-
-	syscall.Sethostname([]byte("container"))
-	syscall.Chroot("/vagrant/ubuntu-fs")
-	syscall.Chdir("/")
-	syscall.Mount("proc", "proc", "proc", 0, "")
+	fmt.Printf("Running %v \n", os.Args[2:])
 
 	cmd := exec.Command(os.Args[2], os.Args[3:]...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	cmd.Run()
+	must(syscall.Sethostname([]byte("container")))
+	must(syscall.Chroot("/home/liz/ubuntufs"))
+	must(os.Chdir("/"))
+	must(syscall.Mount("proc", "proc", "proc", 0, ""))
+	must(syscall.Mount("thing", "mytemp", "tmpfs", 0, ""))
+	
+	cg()
 
-	syscall.Unmount("/proc", 0)
+	must(cmd.Run())
+
+	must(syscall.Unmount("proc", 0))
+	must(syscall.Unmount("thing", 0))
 
 }
 
