@@ -53,15 +53,18 @@ func child() {
 
 	must(syscall.Mount("proc", "/proc", "proc", 0, ""))
 	must(syscall.Mount("sysfs", "/sys", "sysfs", 0, ""))
-	must(syscall.Mount("thing", "/mytemp", "tmpfs", 0, ""))
+	must(syscall.Mount("cgroup2", "/sys/fs/cgroup", "cgroup2", 0, ""))
+	must(syscall.Mount("tmpfs", "/mytemp", "tmpfs", 0, ""))
 	
 	cg()
 
 	must(cmd.Run())
 
+	must(syscall.Unmount("/mytemp", 0))
+	must(syscall.Unmount("/sys/fs/cgroup", 0))
 	must(syscall.Unmount("/proc", 0))
 	must(syscall.Unmount("/sys", 0))
-	must(syscall.Unmount("/thing", 0))
+	
 
 }
 
