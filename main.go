@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -51,28 +50,39 @@ func child() {
 	must(syscall.Sethostname([]byte("container")))
 	must(syscall.Chroot("/containers/ubuntufs"))
 	must(os.Chdir("/"))
-	must(syscall.Mount("proc", "proc", "proc", 0, ""))
-	must(syscall.Mount("thing", "mytemp", "tmpfs", 0, ""))
+
+	must(syscall.Mount("proc", "/proc", "proc", 0, ""))
+	must(syscall.Mount("sysfs", "/sys", "sysfs", 0, ""))
+	must(syscall.Mount("thing", "/mytemp", "tmpfs", 0, ""))
 	
 	cg()
 
 	must(cmd.Run())
 
-	must(syscall.Unmount("proc", 0))
-	must(syscall.Unmount("thing", 0))
+	must(syscall.Unmount("/proc", 0))
+	must(syscall.Unmount("/sys", 0))
+	must(syscall.Unmount("/thing", 0))
 
 }
 
 func cg() {
-	cgroups := "sys/fs/cgroup/"
-	pids := filepath.Join(cgroups, "pids")
-	err := os.Mkdir(filepath.Join(pids, "r"), 0755)
-	if err != nil && !os.IsExist(err) {
-		panic(err)
-	}
-	must(ioutil.WriteFile(filepath.Join(pids, "r/pids.max"), []byte("20"), 0700))
-	must(ioutil.WriteFile(filepath.Join(pids, "r/notify_on_release"), []byte("1"), 0700))
-	must(ioutil.WriteFile(filepath.Join(pids, "r/cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0700))
+	cgroupPath := "/sys/fs/cgroup/mycontainer"
+
+	must(os.MkdirAll(cgroupPath, 0755))
+
+	// Limit number of processes
+	must(os.WriteFile(
+		filepath.Join(cgroupPath, "pids.max"),
+		[]byte("20"),
+		0644,
+	))
+
+	// Move this process into the cgroup
+	must(os.WriteFile(
+		filepath.Join(cgroupPath, "cgroup.procs"),
+		[]byte(strconv.Itoa(os.Getpid())),
+		0644,
+	))
 
 }
 
